@@ -6,30 +6,52 @@ package golog
 
 import (
     "os"
-    "fmt"
+    "sync"
 )
 
 type FileHandler struct {
-    file    *os.File
-    path    string
+    filename    string
+    file        *os.File
+    mu          sync.Mutex
 }
 
 func NewFileHandler(path string) *FileHandler {
-    file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
-    if err != nil {
-        panic(fmt.Sprintf("log file '%s' create failed, err output: %s", path, err.Error()))
-    }
     return &FileHandler{
-        file: file,
-        path: path,
+        filename: path,
     }
 }
 
 func (f *FileHandler) Write(p []byte) (n int, err error) {
+    f.mu.Lock()
+	defer f.mu.Unlock()
+
+    if err = f.openFileHandler(); err != nil {
+		return 0, err
+	}
+
     return f.file.Write(p)
 }
 
-func (f *FileHandler) Close() {
-    f.file.Close()
+func (f *FileHandler) Close() error {
+    f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.close()
 }
 
+func (f *FileHandler) close() error {
+	if f.file == nil {
+		return nil
+	}
+	err := f.file.Close()
+	f.file = nil
+	return err
+}
+
+func (f *FileHandler) openFileHandler() error {
+    file, err := os.OpenFile(f.filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
+    if err != nil {
+        return err
+    }
+    f.file = file
+    return nil
+}

@@ -124,4 +124,3 @@ func Error(s string, v ...interface{}) {
 func Panic(s string, v ...interface{}) {
     stdLog.Panic(s, v...)
 }
-
